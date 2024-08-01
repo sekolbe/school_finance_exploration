@@ -55,9 +55,9 @@ missing <- anti_join(dist_geo, dist_finance, by="district_code")
 # Join geographic and finance data
 district <- left_join(dist_geo, dist_finance, by = "district_code")
 
-# Make a gif of TCEC per pupil ----------
+# Make gifs of finance measures ----------
 
-# Create frames
+# Create frames for a test gif
 tcec_frames <- ggplot() + 
   # plot the state data
   geom_sf(data = district, aes(fill = tcec)) +
@@ -69,7 +69,26 @@ tcec_frames <- ggplot() +
   theme_minimal() +
   theme(legend.box.background = element_rect())+
   transition_manual(fiscal_year)
-
 # Animate frames and save
 animate(tcec_frames, fps = 10)
-anim_save("output/Wisconsin TCEC per pupil 2015-2023.gif")
+
+# Generalize code, generate gifs for other finance variables, and save
+make_finance_gif <- function(my_data, my_field, my_title, my_abbr){
+  tcec_frames <- ggplot() + 
+    # plot the state data
+    geom_sf(data = my_data, aes(fill = {{my_field}})) +
+    scale_fill_paletteer_c("grDevices::Purple-Yellow", direction = -1) +
+    labs(title = "{my_title} ({my_abbr}) Per Pupil", 
+         subtitle = "{current_frame}",
+         fill = "Per Pupil Cost",
+         caption = "Data from Wisconsin Department of Public Instruction") + 
+    theme_minimal() +
+    theme(legend.box.background = element_rect())+
+    transition_manual(fiscal_year)
+  # Animate frames and save
+  animate(tcec_frames, fps = 10)
+  anim_save(str_c("output/Wisconsin ", my_abbr, " per pupil ", min(my_data$fiscal_year), "-",  max(my_data$fiscal_year), ".gif"))
+}
+make_finance_gif(district, tcec, "Total Current Educational Cost", "TCEC")
+make_finance_gif(district, tec, "Total Educational Cost", "TEC")
+make_finance_gif(district, tdc, "Total District Cost", "TDC")
