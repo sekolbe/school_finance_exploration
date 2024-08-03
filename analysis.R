@@ -1,6 +1,6 @@
 # Simple cleaning and exploration of WI school finance data
 # S. Kolbe
-# Updated 2024.07.31
+# Updated 2024.08.02
 
 # Set up ----------
 
@@ -8,22 +8,23 @@ library(tidyverse)
 library(sf)
 library(paletteer)
 library(gganimate)
+library(janitor)
 
 options(scipen = 999)
 
 # Load data ----------
 
+# Downloaded 2024.07.31 from https://dpi.wi.gov/sfs/statistical/longitudinal-data/overview
 finance <- read_csv("source_data/compcost_sum_1415_to_2223.csv")
 
+# Downloaded 2024.07.31 from https://data-wi-dpi.opendata.arcgis.com/
 geography <- read_sf("source_data/Wisconsin_School_Districts/WI_School_Districts.shp")
 
 # Clean and prep data ----------
 
-# Clean up column names
-colnames(finance) <- tolower(str_replace_all(colnames(finance), " ", "_"))
-
 # Format and add basic aggregations for finance data
 dist_finance <- finance %>%
+  clean_names() %>%
   pivot_longer(cols = c(starts_with("member"), starts_with("instruct"), 
                         starts_with("pupil"), starts_with("admin"), 
                         starts_with("operat"), starts_with("trans"),
@@ -41,7 +42,7 @@ dist_finance <- finance %>%
   # Filter out state totals
   filter(district_code != 9999)
 
-# Clean up columnn names in geography file and reproject
+# Clean up column names in geography file and transform map projection
 dist_geo <- geography %>%
   rename_all(tolower) %>%
   rename(district_code = sdid) %>%
@@ -73,12 +74,12 @@ tcec_frames <- ggplot() +
 animate(tcec_frames, fps = 10)
 
 # Generalize code, generate gifs for other finance variables, and save
-make_finance_gif <- function(my_data, my_field, my_title, my_abbr){
+make_finance_gif <- function(map_data, field, title, abbr){
   tcec_frames <- ggplot() + 
     # plot the state data
-    geom_sf(data = my_data, aes(fill = {{my_field}})) +
+    geom_sf(data = map_data, aes(fill = {{field}})) +
     scale_fill_paletteer_c("grDevices::Purple-Yellow", direction = -1) +
-    labs(title = "{my_title} ({my_abbr}) Per Pupil", 
+    labs(title = "{title} ({abbr}) Per Pupil", 
          subtitle = "{current_frame}",
          fill = "Per Pupil Cost",
          caption = "Data from Wisconsin Department of Public Instruction") + 
@@ -87,7 +88,7 @@ make_finance_gif <- function(my_data, my_field, my_title, my_abbr){
     transition_manual(fiscal_year)
   # Animate frames and save
   animate(tcec_frames, fps = 10)
-  anim_save(str_c("output/Wisconsin ", my_abbr, " per pupil ", min(my_data$fiscal_year), "-",  max(my_data$fiscal_year), ".gif"))
+  anim_save(str_c("Wisconsin ", abbr, " per pupil ", min(map_data$fiscal_year), "-",  max(map_data$fiscal_year), ".gif"))
 }
 make_finance_gif(district, tcec, "Total Current Educational Cost", "TCEC")
 make_finance_gif(district, tec, "Total Educational Cost", "TEC")
